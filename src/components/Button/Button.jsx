@@ -1,11 +1,10 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import { Btn } from './Button.styled';
 
-import './Button.scss';
+export const Button = ({ type, children, onClick = () => { } }) => {
 
-const Button = ({ type, children, onClick = null }) => {
-
-  return (<button className="Button" type={type} onClick={onClick} > {children}</button>)
+  return (<Btn type={type} onClick={onClick} > {children}</Btn>)
 }
 
 Button.propTypes = {
@@ -13,7 +12,4 @@ Button.propTypes = {
   children: PropTypes.node,
   onClick: PropTypes.func,
 }
-
-
-export default Button;
 

@@ -1,98 +1,112 @@
-import React, { Component } from "react";
-import Container from "./Container";
-import ContactForm from "./ContactForm";
-import ContactList from "./ContactList";
-import TotalNumberContacts from "./TotalNumberContacts";
-import Filter from "./Filter";
+import { Component } from "react";
+import { fetchApi } from "./utils/api";
+import { mapper } from './utils/mapper';
+import { Container } from "./Container/Container";
+import { Searchbar } from "./Searchbar/Searchbar";
+import { ImageGallery } from "./ImageGallery/ImageGallery";
+import { ImageGalleryItem } from "./ImageGalleryItem/ImageGalleryItem";
+import { Button } from './Button/Button';
+import { Loader } from './Loader/Loader';
+import { Notification } from './Notification/Notification';
+import { Modal } from './Modal/Modal';
 
 export class App extends Component {
   state = {
-    contacts: [],
-    // contacts: [
-    //   { id: 'id-1', name: 'Rosie Simpson', number: '459-12-56' },
-    //   { id: 'id-2', name: 'Hermione Kline', number: '443-89-12' },
-    //   { id: 'id-3', name: 'Eden Clements', number: '645-17-79' },
-    //   { id: 'id-4', name: 'Annie Copeland', number: '227-91-26' },
-    // ],
-    filter: '',
+    search: "",
+    images: [],
+    currentImage: null,
+    page: 1,
+    perPage: 12,
+    maxPage: null,
+    isLoading: false,
+    error: null,
   }
 
-  componentDidMount() {
-    const contacts = localStorage.getItem("contacts");
-    if (contacts) {
-      this.setState({ contacts: JSON.parse(contacts) })
+  componentDidUpdate(_, prevState) {
+    const { page, search } = this.state;
+    if (prevState.page !== page || prevState.search !== search) {
+      this.fetchGallery();
     }
-  }
-
-  componentDidUpdate(prevState) {
-    const { contacts } = this.state;
-    if (contacts !== prevState) {
-      localStorage.setItem("contacts", JSON.stringify(contacts));
-    }
-  }
-
-  addContact = data => {
-    const { contacts } = this.state;
-    const normalizedName = data.name.toLowerCase();
-
-    if (contacts.find(contact => contact.name.toLowerCase() === normalizedName)) {
-      alert(`${data.name} is already in contacts.`);
-      return;
-    }
-    this.setState({ contacts: [data, ...contacts] });
-  };
-
-  changeFilter = e => this.setState({
-    filter: e.currentTarget.value
-  });
-
-  getFilteredContacts = () => {
-    const { contacts, filter } = this.state;
-    const normalizedFilter = filter.toLowerCase();
-
-    return contacts.filter(contact =>
-      contact.name.toLowerCase().includes(normalizedFilter)
-    );
-  };
-
-  deleteContact = contactId => {
-    this.setState({
-      contacts: [...this.state.contacts
-        .filter(contact => contact.id !== contactId)]
+    window.scrollBy({
+      top: 400,
+      behavior: "smooth",
     });
-    localStorage.setItem("contacts", JSON.stringify(this.state.contacts));
+  }
+
+  fetchGallery = async () => {
+    const { search, page, perPage } = this.state;
+    try {
+      this.setState({ isLoading: true });
+      const response = await fetchApi(search, page, perPage);
+
+      if (!response.hits.length) this.setState({ error: "Sorry, there are no images matching your search query. Please try again" });
+      this.setState(prevState => (
+        {
+          images: [...prevState.images, ...mapper(response.hits)],
+          maxPage: Math.ceil(response.totalHits / perPage)
+        }))
+    } catch (error) {
+      this.setState({ error: "Error" })
+    } finally {
+      this.setState({ isLoading: false });
+    }
+  }
+
+  onSearch = e => {
+    e.preventDefault();
+    const searchQuery = e.target.input.value.trim();
+    if (!searchQuery) return this.setState({ error: "Enter data in the search field" });
+    if (this.state.search !== searchQuery) {
+      this.setState({ search: searchQuery, page: 1, maxPage: null, images: [], error: null });
+    }
+  }
+
+  LoadMore = () => {
+    this.setState(prevState => ({ page: prevState.page + 1 }))
+  }
+
+  openModal = data => {
+    this.setState({ currentImage: data })
+  }
+
+  closeModal = () => {
+    this.setState({ currentImage: null })
   }
 
   render() {
-    const { contacts, filter } = this.state;
-    const filteredContacts = this.getFilteredContacts();
+    const { images, currentImage, page, maxPage, isLoading, error } = this.state;
 
     return (
-      <>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr',
+          gridGap: '16px',
+          paddingBottom: '24px',
+        }} >
+
         <Container>
-          <h1>Phonebook</h1>
-          <ContactForm
-            onSubmit={this.addContact}>
-          </ContactForm>
 
-          <h2>Contacts</h2>
-          <TotalNumberContacts value={contacts.length} />
-          {contacts.length > 0 &&
-            <><Filter
-              value={filter}
-              onChange={this.changeFilter}
-            />
-              {(contacts.length > 0 && filteredContacts.length === 0) &&
-                <h3>Sorry, no contacts were found for your search.</h3>}
-              <ContactList
-                contacts={filteredContacts}
-                deleteContact={this.deleteContact}
-              />
-            </>}
+          <Searchbar onSubmit={this.onSearch} />
 
+          <ImageGallery>
+            <ImageGalleryItem
+              images={images}
+              openModal={this.openModal} />
+          </ImageGallery>
+          {isLoading && <Loader />}
+
+          {!isLoading && !error && (images.length > 0) && page < maxPage &&
+            <Button
+              type="button"
+              onClick={this.LoadMore} >
+              Load more
+            </Button>}
+
+          {error && <Notification message={error} />}
+          {currentImage && <Modal image={currentImage} closeModal={this.closeModal} />}
         </Container>
-      </>
-    )
+      </div>
+    );
   }
-};
-
+}
