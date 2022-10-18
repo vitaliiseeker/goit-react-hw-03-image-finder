@@ -55,7 +55,7 @@ export class App extends Component {
   onSearch = e => {
     e.preventDefault();
     const searchQuery = e.target.input.value.trim();
-    if (!searchQuery) return this.setState({ error: "Enter data in the search field" });
+    if (!searchQuery) return this.setState({ images: [], error: "Enter data in the search field" });
     if (this.state.search !== searchQuery) {
       this.setState({ search: searchQuery, page: 1, maxPage: null, images: [], error: null });
     }
